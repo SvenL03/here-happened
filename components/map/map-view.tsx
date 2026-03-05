@@ -131,6 +131,8 @@ export function MapView() {
         result={result}
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        lat={selected?.lat}
+        lng={selected?.lng}
       />
     </div>
   );
