@@ -7,7 +7,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExternalLink, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ResearchResult, HistoricalFact } from "@/lib/types";
@@ -79,7 +78,7 @@ export function FactsPanel({ result, open, onClose, lat, lng }: FactsPanelProps)
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
-        className="bg-zinc-950 border-zinc-800 rounded-t-2xl max-h-[80vh] p-0 flex flex-col"
+        className="bg-zinc-950 border-zinc-800 rounded-t-2xl max-h-[80vh] p-0"
       >
         {result && (
           <>
@@ -96,7 +95,7 @@ export function FactsPanel({ result, open, onClose, lat, lng }: FactsPanelProps)
               <Timeline facts={sortedFacts} />
             </div>
 
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="overflow-y-auto h-[calc(80vh-180px)] overscroll-contain">
               <div className="px-4 py-3 flex flex-col gap-3">
                 {sortedFacts.map((fact, i) => (
                   <FactCard key={i} fact={fact} />
@@ -143,7 +142,7 @@ export function FactsPanel({ result, open, onClose, lat, lng }: FactsPanelProps)
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </SheetContent>
