@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +13,88 @@ import type { ResearchResult, HistoricalFact } from "@/lib/types";
 import { FactCard } from "@/components/ui/fact-card";
 import { Timeline, parseYear } from "@/components/ui/timeline";
 import { researchLocationDeep } from "@/app/actions/research";
+import { PHRASES, shufflePhrases } from "@/components/ui/loading-overlay";
+
+const DEEP_DURATION = 30000;
+
+function DeepResearchLoader() {
+  const queue = useRef<string[]>(shufflePhrases(PHRASES));
+  const indexRef = useRef(0);
+  const [phase, setPhase] = useState<"intro" | "cycling">("intro");
+  const [text, setText] = useState("Give us 20–30 seconds for a deep dive");
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setPhase("cycling"), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "cycling") return;
+    const interval = setInterval(() => {
+      indexRef.current += 1;
+      if (indexRef.current >= queue.current.length) {
+        queue.current = shufflePhrases(PHRASES);
+        indexRef.current = 0;
+      }
+      setText(queue.current[indexRef.current]);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  useEffect(() => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      setProgress(Math.min(elapsed / DEEP_DURATION, 0.95));
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  const r = 20;
+  const circumference = 2 * Math.PI * r;
+  const dashOffset = circumference * (1 - progress);
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-zinc-900 rounded-xl border border-amber-500/20 mt-2">
+      <div className="relative shrink-0 w-12 h-12">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r={r} fill="none" stroke="#27272a" strokeWidth="3" />
+          <circle
+            cx="24"
+            cy="24"
+            r={r}
+            fill="none"
+            stroke="#fbbf24"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            transform="rotate(-90 24 24)"
+            style={{ transition: "stroke-dashoffset 0.1s linear" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[10px] text-amber-400 font-medium">
+            {Math.round(progress * 100)}%
+          </span>
+        </div>
+      </div>
+      <span className="text-zinc-300 text-sm flex items-center">
+        {text}
+        <span className="inline-flex items-end gap-[2px] ml-0.5">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="w-1 h-1 rounded-full bg-amber-400 animate-bounce inline-block"
+              style={{ animationDelay: `${i * 160}ms` }}
+            />
+          ))}
+        </span>
+      </span>
+    </div>
+  );
+}
 
 function sortFactsByDate(facts: HistoricalFact[]): HistoricalFact[] {
   return [...facts].sort((a, b) => {
@@ -102,24 +184,18 @@ export function FactsPanel({ result, open, onClose, lat, lng }: FactsPanelProps)
                 ))}
 
                 {!deepDone && lat && lng && (
-                  <Button
-                    onClick={handleDeepResearch}
-                    disabled={deepLoading}
-                    className="mt-2 w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:border-amber-500/50"
-                    variant="outline"
-                  >
-                    {deepLoading ? (
-                      <>
-                        <Search size={14} className="mr-2 animate-pulse" />
-                        Researching deeply...
-                      </>
-                    ) : (
-                      <>
-                        <Search size={14} className="mr-2" />
-                        In-depth research
-                      </>
-                    )}
-                  </Button>
+                  deepLoading ? (
+                    <DeepResearchLoader />
+                  ) : (
+                    <Button
+                      onClick={handleDeepResearch}
+                      className="mt-2 w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:border-amber-500/50"
+                      variant="outline"
+                    >
+                      <Search size={14} className="mr-2" />
+                      In-depth research
+                    </Button>
+                  )
                 )}
 
                 {allSources.length > 0 && (
