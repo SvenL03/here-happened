@@ -11,3 +11,13 @@ export interface ResearchResult {
   facts: HistoricalFact[];
   sources: { title: string; url: string }[];
 }
+
+export interface TodayEvent {
+  title: string;
+  description: string;
+  year: number;
+  locationName: string;
+  lat: number;
+  lng: number;
+  category: "battle" | "person" | "event" | "culture" | "geography" | "trivia";
+}

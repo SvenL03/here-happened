@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ResearchResult } from "@/lib/types";
+import type { ResearchResult, TodayEvent } from "@/lib/types";
 
 const client = new OpenAI({
   apiKey: process.env.PERPLEXITY_API_KEY,
@@ -146,6 +146,64 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
       facts: [],
       sources: [],
     };
+  }
+}
+
+export async function searchTodayInHistory(): Promise<TodayEvent[]> {
+  const now = new Date();
+  const month = now.toLocaleString("en-US", { month: "long" });
+  const day = now.getDate();
+  const dateStr = `${month} ${day}`;
+
+  const response = await client.chat.completions.create({
+    model: "sonar",
+    messages: [
+      {
+        role: "system",
+        content: `You are a world historian and expert curator of significant historical events. Given a calendar date (month and day), find the 5 most globally significant events that occurred on that exact date in any year throughout all of human history.
+
+Choose events that:
+- Are genuinely historically important (battles, discoveries, births/deaths of major figures, political turning points, inventions)
+- Span different eras and different regions of the world (not all from the same continent or century)
+- Include the precise geographic location where the event took place
+
+For each event, provide the approximate latitude and longitude of where the event occurred. Be as accurate as possible with coordinates.
+
+Return ONLY valid JSON matching this exact structure (no markdown, no code fences):
+{
+  "events": [
+    {
+      "title": "short compelling title",
+      "description": "2-3 sentence explanation of what happened and why it matters historically",
+      "year": 1789,
+      "locationName": "city or region name, country",
+      "lat": 48.8566,
+      "lng": 2.3522,
+      "category": "battle|person|event|culture|geography|trivia"
+    }
+  ]
+}`,
+      },
+      {
+        role: "user",
+        content: `What are the 5 most historically significant events that occurred on ${dateStr} (this exact calendar date, any year) anywhere in the world? Choose events from diverse regions and eras.`,
+      },
+    ],
+    web_search_options: {
+      search_context_size: "high",
+    },
+  });
+
+  const text = response.choices[0]?.message?.content;
+  if (!text) throw new Error("No response from Perplexity");
+
+  const cleaned = text.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+
+  try {
+    const parsed = JSON.parse(cleaned) as { events: TodayEvent[] };
+    return parsed.events;
+  } catch {
+    return [];
   }
 }
 

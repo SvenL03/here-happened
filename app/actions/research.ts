@@ -1,7 +1,7 @@
 "use server";
 
-import { searchLocation, searchLocationDeep, searchLocationOnThisDay } from "@/lib/perplexity";
-import type { ResearchResult } from "@/lib/types";
+import { searchLocation, searchLocationDeep, searchLocationOnThisDay, searchTodayInHistory } from "@/lib/perplexity";
+import type { ResearchResult, TodayEvent } from "@/lib/types";
 
 export async function researchLocation(
   lat: number,
@@ -24,6 +24,15 @@ export async function researchLocationOnThisDay(
   } catch (error) {
     console.error("On This Day research failed:", error);
     throw new Error("Failed to research this location. Please try again.");
+  }
+}
+
+export async function researchTodayInHistory(): Promise<TodayEvent[]> {
+  try {
+    return await searchTodayInHistory();
+  } catch (error) {
+    console.error("Today in History research failed:", error);
+    throw new Error("Failed to load today's historical events. Please try again.");
   }
 }
 
