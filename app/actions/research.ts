@@ -1,6 +1,6 @@
 "use server";
 
-import { searchLocation, searchLocationDeep } from "@/lib/perplexity";
+import { searchLocation, searchLocationDeep, searchLocationOnThisDay } from "@/lib/perplexity";
 import type { ResearchResult } from "@/lib/types";
 
 export async function researchLocation(
@@ -11,6 +11,18 @@ export async function researchLocation(
     return await searchLocation(lat, lng);
   } catch (error) {
     console.error("Research failed:", error);
+    throw new Error("Failed to research this location. Please try again.");
+  }
+}
+
+export async function researchLocationOnThisDay(
+  lat: number,
+  lng: number
+): Promise<ResearchResult> {
+  try {
+    return await searchLocationOnThisDay(lat, lng);
+  } catch (error) {
+    console.error("On This Day research failed:", error);
     throw new Error("Failed to research this location. Please try again.");
   }
 }
