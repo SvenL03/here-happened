@@ -47,22 +47,49 @@ export function Timeline({ facts }: TimelineProps) {
   const range = maxYear - minYear || 1;
 
   const PADDING = 48;
+  const MIN_SPACING = 32;
   const totalWidth = Math.max(500, factsWithYears.length * 80 + PADDING * 2);
   const usableWidth = totalWidth - PADDING * 2;
+
+  // Compute initial positions by linear interpolation
+  const positions = factsWithYears.map((f) => {
+    const pct = (f.year - minYear) / range;
+    return PADDING + pct * usableWidth;
+  });
+
+  // Iteratively spread positions that are too close together
+  for (let pass = 0; pass < 200; pass++) {
+    let moved = false;
+    for (let i = 1; i < positions.length; i++) {
+      const gap = positions[i] - positions[i - 1];
+      if (gap < MIN_SPACING) {
+        const overlap = MIN_SPACING - gap;
+        positions[i - 1] -= overlap / 2;
+        positions[i] += overlap / 2;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Expand canvas width if spreading pushed dots beyond original bounds
+  const maxX = positions[positions.length - 1] + PADDING;
+  const effectiveWidth = Math.max(totalWidth, maxX);
+  const lineEnd = positions[positions.length - 1];
+  const lineStart = positions[0];
 
   return (
     <div className="border-b border-zinc-800 bg-zinc-950/50">
       <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" as const }}>
-        <div style={{ width: totalWidth, height: 64 }} className="relative">
+        <div style={{ width: effectiveWidth, height: 64 }} className="relative">
           {/* Timeline line */}
           <div
             className="absolute bg-zinc-700"
-            style={{ top: 36, left: PADDING, width: usableWidth, height: 1 }}
+            style={{ top: 36, left: lineStart, width: Math.max(0, lineEnd - lineStart), height: 1 }}
           />
 
           {factsWithYears.map((f, i) => {
-            const pct = (f.year - minYear) / range;
-            const x = PADDING + pct * usableWidth;
+            const x = positions[i];
 
             return (
               <div
