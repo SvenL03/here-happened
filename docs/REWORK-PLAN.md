@@ -2,6 +2,7 @@
 
 ## Status (keep current)
 
+- 2026-11-16 20:00 ET: **ready for review.** Private preview: https://here-happened-git-rework-2026-11-sven-pro-services.vercel.app (access link and test plan in `docs/READY-FOR-REVIEW.md`). Walked in a real browser at desktop and 390 px. Fact-check: 33/33 sampled sentences (helper) plus 5/5 (integrator) found verbatim at source. Fixed after the first walk: empty Sahara spots now widen to region and country; spot names prefer the landmark at the pin (Colosseum, not the Colossus of Nero's plinth); search suggestions are de-duplicated; rankings trivia is dropped. Open decisions are in `docs/DECISIONS-FOR-SVEN.md`. Running now: a web-design-guidelines review of the screen. Waiting on the coordinator's independent review.
 - 2026-11-16 19:35 ET: done and committed: store (Neon `here-happened-db`, free plan, iad1), engine `wiki-v1` (16 self-tests pass), share pages, OG images, sitemap/robots, On This Day. The screen (`components/explorer`) is in its final pass. The engine fact-check is running (`docs/FACTCHECK.md`). Next: commit the screen, build, push (Vercel builds a private preview of the branch), walk it at desktop and phone width, then write `docs/READY-FOR-REVIEW.md`.
 - 2026-11-16 19:20 ET: branch `rework-2026-11` created from `dev`. Audit done (below). Contract in `lib/contract.ts`. Four helpers are building in parallel: engine (`lib/history`, `app/api/place`), screen (`components/explorer`, `app/globals.css`, `app/layout.tsx`), store (`lib/store.ts`, Neon), share pages and On This Day (`app/place`, `app/sitemap.ts`, `app/robots.ts`, `lib/today.ts`, `components/today`). Next: integrate, build, deploy a private preview, walk it in a browser.
 - Production untouched. Nothing merged to `dev` or `main`.
@@ -73,3 +74,30 @@
 4. Share: `/place/[coords]` pages, Open Graph image, sitemap, robots, metadata.
 5. On This Day: rebuilt on Wikipedia's On This Day feed, showing only events whose article has real coordinates.
 6. Verify: build, private preview, browser walk at desktop and phone width, fact-check notes, before/after.
+
+## 4. Before and after
+
+| | Before (March build / `dev`) | After (`rework-2026-11`) |
+|---|---|---|
+| Does it work today? | `dev` production: no. Perplexity is out of credits, and every tap shows "Minified React error #441". The old `here-happened.vercel.app` build (not in Sven's team) works. | Yes. Needs no AI key at all. |
+| Where facts come from | A model guessing from raw coordinates (Perplexity `sonar`) | Reverse geocoding, then Wikipedia (English + the local language) and Wikidata, quoted verbatim |
+| Right place? (5 test places) | 1 of 4 land places named right (Springfield for Cedarville, Kossuth for Sac County, Spalt for Wolframs-Eschenbach); ocean distance wrong by ~1,500 km | 5 of 5 named right, plus Falls Park, Nan Madol and the Sahara |
+| Sources | 3–4 homepages per answer, typed by the model, one invented | One real page per line, the line quoted from it, in its language |
+| Fact-check | 1 false claim found by hand (Spalt "imperial city"), 1 invented source title | 33/33 + 5/5 sampled sentences found verbatim at source (`docs/FACTCHECK.md`) |
+| Thin record | Fills the gap with generic regional history, unlabelled | Says so in a coverage note, then widens: nearby → town → county → region → country (or sea) |
+| Speed | 5–8 s of spinner, then everything at once | Name in ~0.5 s, nearby in ~1 s, timeline in ~1–3 s, streamed; repeat visits ~0.15 s from cache |
+| Timeline | A strip of dots with overlapping labels | Eras from deep past to recent, an era bar to jump, every entry dated and sourced |
+| Search | None | Search any place (Photon/OSM, free) |
+| Share | No link | `/place/LAT,LNG` pages with their own title, description and preview image; sitemap, robots, canonical |
+| On This Day | The model invents coordinates for 5 events | Wikipedia's selected anniversaries, kept only when the article has real coordinates; tap to fly there |
+| Map | Google Maps dark raster, key in the browser, unrestricted | MapLibre globe on OpenFreeMap (free, no key), custom survey-atlas style |
+| Safety and cost | No cache, no rate limit, no cap | Neon cache per place (30 days), 20 uncached lookups per visitor per 10 min and 120 per day, a daily cap of 300 paid geocodes with a free fallback |
+| Look | Stock shadcn + dark Google map | Survey atlas: Newsreader + Overpass type, paper and ink, one red accent, a trig-point pin |
+
+## 5. Cost per query
+
+- **Before:** about 1.5 cents per tap (Perplexity `sonar` with high search context: about $12 per 1,000 requests plus tokens), and about 3 cents with "In-depth research". There was no cap, so cost scaled with traffic and was unbounded under abuse. Today it costs nothing only because it is broken.
+- **After, new place:** 1 Google Geocoding call. That's inside Google's 10,000 free calls a month, then $5 per 1,000 (third-party price lists, Nov 2026; Google's own page didn't show the row), so worst case $0.005. Plus 10–14 free Wikimedia API requests.
+- **After, cached place:** $0.
+- **Worst case per day:** the cap allows 300 paid geocodes a day, so at most $1.50 a day even beyond the free tier. In practice it stays inside the free 10,000 a month. Over the cap, the engine names places from free sources instead.
+- **Fixed costs:** Neon free plan $0, OpenFreeMap $0, Vercel (existing Pro team).
