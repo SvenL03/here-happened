@@ -163,9 +163,10 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
   // The spot: an article within 300 m, else (large sites like Nan Madol) the nearest within 600 m.
   // The spot's name: among articles right at the pin, the one with the most on record (the Colosseum, not the
   // Colossus of Nero's plinth 50 m away), falling back to the nearest.
-  // Score = article size, damped steeply by distance (scale 40 m, cubed): the Colosseum at 80 m beats a 52 m plinth,
-  // but a big school 118 m away doesn't beat the bridge at the pin.
-  const spotScore = (p: GeoPage) => (p.length ?? 1000) / (1 + Math.pow((p.distanceKm * 1000) / 40, 3));
+  // Score = article size, damped very steeply by distance (scale 45 m, fifth power), tuned on snapped pins:
+  // the Colosseum at 80 m beats the Colossus of Nero's plinth at 52 m, Buckingham Palace at 19 m beats the Royal
+  // Archives at 0 m, but the big Governor's School 107 m away doesn't beat Liberty Bridge at Falls Park (65 m).
+  const spotScore = (p: GeoPage) => (p.length ?? 1000) / (1 + Math.pow((p.distanceKm * 1000) / 45, 5));
   const biggest = (ps: GeoPage[]) => ps.reduce<GeoPage | undefined>((b, p) => (!b || spotScore(p) > spotScore(b) ? p : b), undefined);
   const spotOf = (pages: GeoPage[]) =>
     biggest(pages.filter((p) => p.distanceKm <= (resolved.locality ? 0.2 : 0.3) && notAdmin(p.title))) ??
