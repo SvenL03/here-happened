@@ -5,7 +5,18 @@
  */
 import { placePath } from "@/lib/contract";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://here-happened-nu.vercel.app").replace(/\/+$/, "");
+/**
+ * Canonical origin for share links, OG images and the sitemap.
+ * Production: NEXT_PUBLIC_SITE_URL (set it when a custom domain lands), else the team's production alias.
+ * Previews: the stable branch alias, so a preview's share tags point at itself, not at production.
+ */
+function siteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL) return `https://${process.env.VERCEL_BRANCH_URL}`;
+  return "https://here-happened-nu.vercel.app";
+}
+
+export const SITE_URL = siteUrl().replace(/\/+$/, "");
 
 export interface FeaturedPlace {
   name: string;
