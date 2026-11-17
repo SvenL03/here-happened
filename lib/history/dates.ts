@@ -28,7 +28,7 @@ const ABBREV = new Set(
     "rev", "gov", "sen", "rep", "prof", "approx", "est", "inc", "co", "corp", "ltd", "u.s", "e.g", "i.e", "etc", "al",
     "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sept", "sep", "oct", "nov", "dec", "a.d", "b.c", "fl", "r",
     "bzw", "ggf", "chr", "jh", "jhd", "nr", "vgl", "evtl", "hl", "bzw", "z.b", "u.a", "d.h", "s", "bd", "sog", "gest",
-    "geb", "ehem", "ss", "sts", "abt", "bros", "dept", "univ", "urspr", "mgr", "av", "j.-c", "apr", "a.c", "d.c", "sec", "secc", "op", "cf",
+    "geb", "ehem", "lit", "ss", "sts", "abt", "bros", "dept", "univ", "urspr", "mgr", "av", "j.-c", "apr", "a.c", "d.c", "sec", "secc", "op", "cf",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -210,12 +210,20 @@ export function findDate(sentence: string, lang: string): { year: number; dateLa
   };
   hits.sort((a, b) => depth(a.index) - depth(b.index) || a.index - b.index || b.length - a.length);
   const h = hits[0];
+  // A span in parentheses ("Karl von Österreich (1618–24)", "(r. 69–79 AD)") is a life or office term, not the event.
+  if (depth(h.index) > 0) {
+    const open = sentence.lastIndexOf("(", h.index);
+    const close = sentence.indexOf(")", h.index);
+    const inner = sentence.slice(open + 1, close < 0 ? undefined : close);
+    if (/^\s*(?:r\.|reigned|b\.|d\.|\*|†)?\s*c?\.?\s*\d{1,4}\s*(?:[–-]\s*\d{1,4})?\s*(?:AD|BC|BCE|CE)?\s*$/.test(inner)) return null;
+  }
   // Weak: the year only qualifies a noun ("the 1892 presidential election", "1892's"), not the main event.
   const before = sentence.slice(0, h.index);
   const after = sentence.slice(h.index + h.length);
   const weak =
     (lang === "en" && /\bthe\s+$/i.test(before) && /^(?:'s|\s+[a-z])/.test(after) && !/^\s+(?:to|and|until)\b/.test(after)) ||
-    /-century$/.test(h.label);
+    /-century$/.test(h.label) ||
+    depth(h.index) > 0;
   return { year: h.year, dateLabel: h.label, weak };
 }
 
@@ -238,6 +246,7 @@ export function datedSentences(text: string, lang: string): DatedSentence[] {
       if (/\d\s?%|\bper cent\b|\bpercent\b|^As of\b|\bstudents\b/i.test(s)) continue; // statistics
       const close = s.indexOf(")");
       if (close >= 0 && (s.indexOf("(") < 0 || s.indexOf("(") > close)) continue; // fragment
+      if ((s.match(/\(/g) ?? []).length !== (s.match(/\)/g) ?? []).length) continue; // cut inside a parenthesis
       if (new RegExp(`^(${MONTHS_EN}|${MONTHS_DE})\\b`).test(s)) continue; // fragment cut after a day number
       if ((s.match(/;/g) ?? []).length >= 3) continue;
       const years = s.match(/\b(1\d{3}|20[0-2]\d)\b/g) ?? [];
@@ -248,7 +257,7 @@ export function datedSentences(text: string, lang: string): DatedSentence[] {
       if (!d) continue;
       let text = s;
       // "All three disappeared in the 17th century." means nothing alone: join the previous sentence (still verbatim, consecutive) or drop.
-      if (lang === "en" && ANAPHOR.test(s)) {
+      if (lang === "en" && (ANAPHOR.test(s) || /\b(?:the|this|that) (?:village|magazine|book|film|newspaper|company)\b/i.test(s))) {
         const prev = sents[i - 1];
         if (!prev || prev.length + 1 + s.length > 420) continue;
         text = `${prev} ${s}`;

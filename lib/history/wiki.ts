@@ -1,6 +1,6 @@
 /** Wikipedia + Wikidata fetchers. Every result carries the real URL it came from. */
 import type { Source } from "@/lib/contract";
-import { distanceKm, getJson, namesMatch } from "./net";
+import { distanceKm, getJson, namesMatch, norm } from "./net";
 
 export interface GeoPage {
   lang: string;
@@ -208,9 +208,13 @@ SELECT ?item ?coord ?itemLabelEn ?itemLabelLoc ?itemEn ?itemLoc ?anc ?ancLabelEn
       }
     }
   }
+  // Exact name matches first ("Sac County", not "Sac County Courthouse"), then the nearest.
+  const exact = (c: Cand) =>
+    c.labels.some((l) => names.some((n) => norm(l) === norm(n))) ||
+    [c.enTitle, c.localTitle].some((t) => t && names.some((n) => norm(t.split(",")[0].replace(/\s*\(.*\)/, "")) === norm(n)));
   const matching = Array.from(cands.values())
     .filter((c) => (c.enTitle || c.localTitle) && c.labels.some((l) => names.some((n) => namesMatch(n, l))))
-    .sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
+    .sort((a, b) => Number(exact(b)) - Number(exact(a)) || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
   const best = matching[0];
   if (!best) return { ancestors: [] };
   return {

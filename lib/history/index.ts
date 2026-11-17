@@ -121,7 +121,17 @@ function select(cands: Candidate[]): Candidate[] {
 function pickAncestor(chain: AdminChain, names: (string | undefined)[]): AdminArticle | undefined {
   const ns = names.filter(Boolean) as string[];
   if (!ns.length) return undefined;
-  return chain.ancestors.find((a) => (a.enTitle || a.localTitle) && a.label.split(" / ").some((l) => ns.some((n) => namesMatch(n, l))));
+  const usable = chain.ancestors.filter((a) => (a.enTitle || a.localTitle) && a.qid !== chain.start?.qid);
+  const labels = (a: AdminArticle) => a.label.split(" / ");
+  // Exact label first ("Greenville County"), then a token match that is not just the town's own name.
+  return (
+    usable.find((a) => labels(a).some((l) => ns.some((n) => norm(l) === norm(n)))) ??
+    usable.find(
+      (a) =>
+        labels(a).some((l) => ns.some((n) => namesMatch(n, l))) &&
+        !labels(a).some((l) => chain.start && chain.start.label.split(" / ").some((s) => norm(s) === norm(l))),
+    )
+  );
 }
 
 export async function buildPlaceStory(lat: number, lng: number, emit?: (e: PlaceEvent) => void): Promise<PlaceStory> {
