@@ -9,7 +9,7 @@ import { datedSentences, firstSentence, pickText } from "./dates";
 import { namesMatch, norm, round1, within } from "./net";
 import { resolvePlace, toPlaceInfo } from "./place";
 import type { AdminArticle, AdminChain, DatedItem, GeoPage } from "./wiki";
-import { datedItemsAround, fullText, geosearch, intros, islandsAround, resolveAdmin, wikidataSource, wikiSource } from "./wiki";
+import { datedItemsAround, fullText, geosearch, intros, islandsAround, resolveAdmin, wikidataSource, wikiSource, verifiedTitle } from "./wiki";
 
 export const ENGINE = "wiki-v1";
 
@@ -336,6 +336,27 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
     await Promise.all(jobs);
     jobs.length = 0;
     if (cands.length < 6 && country?.enTitle) addFull("en", country.enTitle, "history-only", "country", resolved.country ?? country.label);
+    await Promise.all(jobs);
+    jobs.length = 0;
+    // Still thin (no Wikidata match for the admin chain, e.g. the open Sahara): widen with the geocoder's own
+    // region and country names, each verified as a real, non-disambiguation article whose coordinates are near.
+    if (cands.length < 6) {
+      const wider: [string | undefined, Scope, number][] = [
+        [regionName ? undefined : resolved.region, "region", 1500],
+        [country ? undefined : resolved.country, "country", 4500],
+      ];
+      const found = await Promise.all(
+        wider.map(([name, , maxKm]) => (name ? soft(verifiedTitle("en", name, lat, lng, maxKm), null) : Promise.resolve(null))),
+      );
+      wider.forEach(([name, scope], i) => {
+        const title = found[i];
+        if (!name || !title || usedTitles.has(`en:${title}`)) return;
+        usedTitles.add(`en:${title}`);
+        if (scope === "region") regionName = name;
+        else countryName = name;
+        addFull("en", title, "history-only", scope, name);
+      });
+    }
   }
   await Promise.all(jobs);
 

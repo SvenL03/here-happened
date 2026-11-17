@@ -70,6 +70,24 @@ export async function fullText(lang: string, title: string): Promise<{ title: st
   return { title: p.title, url: p.fullurl, text: p.extract };
 }
 
+/**
+ * A title from the geocoder ("Tindouf Province", "Algeria") is used only if the page exists, isn't a
+ * disambiguation page, and its own coordinates are within maxKm of the pin. Returns the canonical title.
+ */
+export async function verifiedTitle(lang: string, title: string, lat: number, lng: number, maxKm: number): Promise<string | null> {
+  const u =
+    `${api(lang)}?action=query&format=json&formatversion=2&prop=coordinates%7Cpageprops&ppprop=disambiguation` +
+    `&redirects=1&titles=${encodeURIComponent(title)}`;
+  const d = await getJson<{
+    query?: { pages?: { title: string; missing?: boolean; coordinates?: { lat: number; lon: number }[]; pageprops?: Record<string, string> }[] };
+  }>(u, 3500);
+  const p = d.query?.pages?.[0];
+  if (!p || p.missing || (p.pageprops && "disambiguation" in p.pageprops)) return null;
+  const c = p.coordinates?.[0];
+  if (!c) return null;
+  return distanceKm(lat, lng, c.lat, c.lon) <= maxKm ? p.title : null;
+}
+
 /** Plain-text intros for up to 20 titles in one call. */
 export async function intros(lang: string, titles: string[]): Promise<{ title: string; url: string; text: string }[]> {
   if (!titles.length) return [];
