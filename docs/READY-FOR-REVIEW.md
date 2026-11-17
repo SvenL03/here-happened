@@ -54,6 +54,10 @@ Written 2026-11-16, about 20:00 ET. Branch `rework-2026-11` (latest commit on Gi
     All 5 found.
 - **Store:** live smoke test 14/14 (`scripts/store-smoke.ts`): cache, the 21st lookup in 10 min is blocked, and the geocode cap.
 
+## Fixed after this file was first written (20:00–20:07 ET)
+
+- Web Interface Guidelines pass (a11y, contrast, keyboard pin drop, icons). Rankings trivia dropped. Region/country sentences must name the region/country. Spot coverage note reworded.
+
 ## What I know is still open
 
 - **Year attribution:** a year in a sentence isn't always the year of the event. The sentence is shown verbatim, so the reader sees the context, but the date chip can mislead. Example: Hoxne shows "365 CE" on a sentence about Palaeolithic to Roman finds; check it.
