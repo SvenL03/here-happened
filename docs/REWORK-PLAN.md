@@ -2,6 +2,7 @@
 
 ## Status (keep current)
 
+- 2026-11-16 19:35 ET: done and committed: store (Neon `here-happened-db`, free plan, iad1), engine `wiki-v1` (16 self-tests pass), share pages, OG images, sitemap/robots, On This Day. The screen (`components/explorer`) is in its final pass. The engine fact-check is running (`docs/FACTCHECK.md`). Next: commit the screen, build, push (Vercel builds a private preview of the branch), walk it at desktop and phone width, then write `docs/READY-FOR-REVIEW.md`.
 - 2026-11-16 19:20 ET: branch `rework-2026-11` created from `dev`. Audit done (below). Contract in `lib/contract.ts`. Four helpers are building in parallel: engine (`lib/history`, `app/api/place`), screen (`components/explorer`, `app/globals.css`, `app/layout.tsx`), store (`lib/store.ts`, Neon), share pages and On This Day (`app/place`, `app/sitemap.ts`, `app/robots.ts`, `lib/today.ts`, `components/today`). Next: integrate, build, deploy a private preview, walk it in a browser.
 - Production untouched. Nothing merged to `dev` or `main`.
 
@@ -14,7 +15,7 @@
 
 ### What a query costs and whether it works
 
-- `dev` / `-nu` production: **every lookup fails**. The Perplexity key in `.env.local` and in Vercel (same key) returns `401 insufficient_quota`: the account is out of credits. When it had credits, each tap was one Perplexity `sonar` call with `search_context_size: high` (about $0.012 request fee plus tokens, roughly 1.5 cents a tap; "In-depth research" a second call). No cache, no rate limit, no spend cap: anyone could script it.
+- `dev` / `-nu` production: **every lookup fails**. Walked in the browser Nov 16: tapping Cedarville shows a red banner, "Minified React error #441…", after ~20 s. The Perplexity key in `.env.local` and in Vercel (same key) returns `401 insufficient_quota`: the account is out of credits. When it had credits, each tap was one Perplexity `sonar` call with `search_context_size: high` (about $0.012 request fee plus tokens, roughly 1.5 cents a tap; "In-depth research" a second call). No cache, no rate limit, no spend cap: anyone could script it.
 - Google Maps key: valid, **unrestricted** (works server-side with no referrer for Geocoding and Static Maps) and shipped in the browser bundle. It also carries a trailing newline (`%0A` in the script URL).
 
 ### Using it like a curious person (old build at here-happened.vercel.app, desktop and 375 px phone)

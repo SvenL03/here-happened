@@ -82,28 +82,28 @@ export function leadEntry(story: PlaceStory): TimelineEntry | null {
 }
 
 /** A label that names a year ("1816", "c. 72 AD", "13,000 BCE"), not a span ("2nd century BC"). */
-const YEARISH = /^(c\.\s?)?(AD\s)?\d{1,3}(,\d{3})*(\s?(AD|BC|BCE|CE))?$/;
+const YEARISH = /^(c\.\s?)?(AD\s)?(\d{1,4}|\d{1,3}(,\d{3})+)s?(\s?(AD|BC|BCE|CE))?$/;
 
 /**
  * 3–5 dates spread across the timeline, oldest first, shown with the timeline's own labels
  * (never a computed midpoint: "2nd century BC" sorts as -150 but must not print as "150 BCE").
  */
+const STRIP_SCOPE_RANK: Record<string, number> = { spot: 0, nearby: 1, town: 2, sea: 2, county: 3, region: 4, country: 5 };
+
+/** A few dates for the share image: closest to the pin first (the spot, nearby, the town), then spread across time. */
 export function dateStrip(story: PlaceStory, max = 5): string[] {
-  const byLabel = new Map<string, number>();
-  for (const e of story.timeline) {
-    const label = e.dateLabel?.trim();
-    if (label && YEARISH.test(label) && !byLabel.has(label)) byLabel.set(label, e.year);
-  }
-  if (byLabel.size < 3) {
-    for (const e of story.timeline) {
-      const label = e.dateLabel?.trim();
-      if (label && label.length <= 13 && !byLabel.has(label)) byLabel.set(label, e.year);
-    }
-  }
-  const dated = [...byLabel].sort((a, b) => a[1] - b[1]);
-  if (dated.length <= max) return dated.map(([l]) => l);
+  const seen = new Set<string>();
+  const cands = story.timeline
+    .map((e, i) => ({ label: e.dateLabel?.trim() ?? "", year: e.year, rank: STRIP_SCOPE_RANK[e.scope] ?? 9, i }))
+    .filter((c) => c.label && c.label.length <= 13 && (YEARISH.test(c.label) || c.label.length <= 9))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .filter((c) => (seen.has(c.label) ? false : (seen.add(c.label), true)));
+  const closest = cands.filter((c) => c.rank <= 3);
+  const pool = closest.length >= 3 ? closest : cands;
+  pool.sort((a, b) => a.year - b.year);
+  if (pool.length <= max) return pool.map((c) => c.label);
   const out: string[] = [];
-  for (let i = 0; i < max; i++) out.push(dated[Math.round((i * (dated.length - 1)) / (max - 1))][0]);
+  for (let k = 0; k < max; k++) out.push(pool[Math.round((k * (pool.length - 1)) / (max - 1))].label);
   return [...new Set(out)];
 }
 
