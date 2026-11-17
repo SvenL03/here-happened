@@ -60,9 +60,8 @@ Written 2026-11-16, about 20:00 ET. Branch `rework-2026-11` (latest commit on Gi
 
 ## What I know is still open
 
-- **Year attribution:** a year in a sentence isn't always the year of the event. The sentence is shown verbatim, so the reader sees the context, but the date chip can mislead. Example: Hoxne shows "365 CE" on a sentence about Palaeolithic to Roman finds; check it.
-- **Trivia leaks:** some still gets through (e.g. Sac County's "Best Places to Live in Rural America" 2007).
-- **Grammar:** coverage notes read "the story of Colosseum" (no article).
+- **Year attribution:** a year in a sentence isn't always the year of the event. The sentence is shown verbatim, so the reader sees the context, but the date chip can mislead. Sentences whose only year sits inside a noun phrase rank lower. Hoxne's "365 CE" turned out to be right: the joined sentence says "coins from about 365 CE".
+- **Trivia:** the obvious kinds (sports results, rankings) are filtered, but some can still get through.
 - **Long or local names:** spot names are full Wikipedia titles and can be long ("Liberty Bridge at Falls Park on the Reedy"); some context names come out in the local language.
 - **Ocean names:** they come from coarse lat/lng boxes, so a point near a sea boundary can get the neighbouring sea's name.
 - **Not checked in a browser:**
@@ -70,5 +69,4 @@ Written 2026-11-16, about 20:00 ET. Branch `rework-2026-11` (latest commit on Gi
   - the offline state
   - dark mode on the preview (the screen helper checked it locally)
   - real-device touch dragging of the sheet
-- **Icons:** the favicon and app icons still have the old look.
 - **Wikimedia load:** each new place makes about 10–14 requests to Wikimedia, at most 6 at a time.
