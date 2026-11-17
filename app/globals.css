@@ -12,6 +12,7 @@
   --accent: #c62f2a;
   --accent-ink: #ffffff;
   --accent-wash: #f3dcd8;
+  --accent-text: #b3261e; /* accent for small text on wash / paper-deep: keeps 4.5:1 */
   --focus: #1f5f8b;
   --scrim: rgba(26, 29, 33, 0.14);
 
@@ -36,6 +37,7 @@
     --accent: #ff6a55;
     --accent-ink: #121518;
     --accent-wash: #3a1f1b;
+    --accent-text: #ff6a55;
     --focus: #8cc4ea;
     --scrim: rgba(0, 0, 0, 0.5);
     color-scheme: dark;
@@ -83,6 +85,11 @@ button {
   color: inherit;
   cursor: pointer;
 }
+button,
+a,
+input {
+  touch-action: manipulation;
+}
 
 /* ---------------------------------------------------------------- app */
 .hh-app {
@@ -115,6 +122,9 @@ button {
 }
 .maplibregl-canvas {
   cursor: crosshair;
+}
+.maplibregl-canvas:focus-visible {
+  outline-offset: -4px;
 }
 .maplibregl-ctrl-attrib.maplibregl-compact {
   background: color-mix(in srgb, var(--paper) 88%, transparent) !important;
@@ -196,9 +206,9 @@ button {
 /* ---------------------------------------------------------------- side (desktop) */
 .hh-side {
   position: absolute;
-  left: 16px;
+  left: max(16px, env(safe-area-inset-left));
   top: 16px;
-  bottom: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
   width: 440px;
   display: flex;
   flex-direction: column;
@@ -280,6 +290,9 @@ button {
   background: transparent;
   color: var(--ink-soft);
 }
+.hh-search-clear:hover {
+  color: var(--ink);
+}
 .hh-search-list {
   position: absolute;
   z-index: 20;
@@ -313,6 +326,7 @@ button {
   color: var(--ink-soft);
 }
 .hh-search-empty {
+  margin: 0;
   padding: 10px 12px;
   color: var(--ink-soft);
   font-size: 15px;
@@ -532,7 +546,7 @@ button {
   color: var(--ink-soft);
 }
 .hh-coverage-level strong {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 .hh-coverage-note {
@@ -733,9 +747,9 @@ button {
   font-size: 14px;
 }
 .hh-chip {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   height: 24px;
+  line-height: 24px;
   padding: 0 8px;
   border-radius: 2px;
   background: var(--paper-deep);
@@ -748,7 +762,7 @@ button {
 }
 .hh-chip-spot {
   background: var(--accent-wash);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .hh-src {
   color: var(--ink);
@@ -873,6 +887,8 @@ button {
   background: var(--paper-deep);
 }
 .hh-near-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: var(--f-display);
   font-size: 20px;
   line-height: 1.25;
@@ -927,6 +943,10 @@ button {
 .hh-src-row:hover {
   text-decoration-color: var(--accent);
 }
+.hh-src-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .hh-src-row .hh-src-pub {
   text-decoration: none;
   font-size: 14px;
@@ -950,7 +970,7 @@ button {
 .hh-tools {
   position: absolute;
   top: 16px;
-  right: 16px;
+  right: max(16px, env(safe-area-inset-right));
   z-index: 3;
   display: flex;
   gap: 8px;
@@ -994,10 +1014,11 @@ button {
   position: absolute;
   z-index: 4;
   top: 68px;
-  right: 16px;
+  right: max(16px, env(safe-area-inset-right));
   width: min(380px, calc(100vw - 32px));
   max-height: calc(100dvh - 100px);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .hh-today-slot:empty {
   display: none;
@@ -1034,8 +1055,8 @@ button {
     position: absolute;
     z-index: 5;
     top: max(10px, env(safe-area-inset-top));
-    left: 12px;
-    right: 12px;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
     padding: 6px 6px 6px 12px;
     display: flex;
     align-items: center;

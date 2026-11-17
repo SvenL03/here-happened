@@ -225,7 +225,9 @@ export function StoryPanel({
     <article className="hh-story" aria-busy={status === "loading"}>
       {/* ---------- Place header ---------- */}
       <header className="hh-place">
-        <p className="hh-coords">{fmtCoords(lat, lng)}</p>
+        <p className="hh-coords" translate="no">
+          {fmtCoords(lat, lng)}
+        </p>
         {place ? (
           <h1 className="hh-place-name">{place.name}</h1>
         ) : (
@@ -299,9 +301,8 @@ export function StoryPanel({
       {/* ---------- Timeline ---------- */}
       {loadingTimeline && (
         <section className="hh-timeline" aria-label="Timeline, loading">
-          <p className="hh-loading-line" role="status">
-            Reading the record…
-          </p>
+          {/* Announced by the explorer's live region; a status role here would repeat it. */}
+          <p className="hh-loading-line">Reading the record…</p>
           {[0, 1, 2].map((i) => (
             <div key={i} className="hh-entry hh-entry-skel" aria-hidden>
               <Skel w="22%" h={12} />

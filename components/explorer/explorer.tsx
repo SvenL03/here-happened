@@ -49,6 +49,8 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
   const [expanded, setExpanded] = useState(false);
   const [drag, setDrag] = useState<number | null>(null);
   const dragStart = useRef<{ y: number; t: number } | null>(null);
+  const dragged = useRef(false);
+  const todayBtn = useRef<HTMLButtonElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [todayOpen, setTodayOpen] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -113,12 +115,12 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
       await navigator.clipboard.writeText(url);
       setToast("Link copied");
     } catch (e) {
-      if ((e as Error).name !== "AbortError") setToast("Couldn't share. Copy the address bar instead.");
+      if ((e as Error).name !== "AbortError") setToast("Couldn’t share. Copy the address bar instead.");
     }
   }, [state.place]);
 
   const locate = () => {
-    if (!("geolocation" in navigator)) return setToast("This browser can't share your location.");
+    if (!("geolocation" in navigator)) return setToast("This browser can’t share your location.");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (p) => {
@@ -133,8 +135,9 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
     );
   };
 
-  // Phone sheet: tap or drag the handle.
+  // Phone sheet: drag the handle (pointer), or tap / Enter / Space / screen-reader activate it (click).
   const onHandleDown = (e: React.PointerEvent) => {
+    dragged.current = false;
     dragStart.current = { y: e.clientY, t: Date.now() };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -148,10 +151,40 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
     dragStart.current = null;
     const dy = s ? e.clientY - s.y : 0;
     setDrag(null);
-    if (Math.abs(dy) < 6) setExpanded((x) => !x);
-    else if (dy < -40) setExpanded(true);
+    if (Math.abs(dy) < 6) return; // a tap: the click handler toggles
+    dragged.current = true;
+    if (dy < -40) setExpanded(true);
     else if (dy > 40) setExpanded(false);
   };
+  const onHandleClick = () => {
+    if (dragged.current) {
+      dragged.current = false;
+      return;
+    }
+    setExpanded((x) => !x);
+  };
+
+  // Phone: keyboard focus moving into the collapsed sheet opens it, so focus never lands off-screen.
+  const onSheetFocus = (e: React.FocusEvent<HTMLElement>) => {
+    if (phone && !expanded && e.target.matches(":focus-visible")) setExpanded(true);
+  };
+
+  const closeToday = useCallback(() => {
+    setTodayOpen(false);
+    todayBtn.current?.focus();
+  }, []);
+
+  // One polite announcement per load, outside the aria-busy story so screen readers hear it.
+  const n = state.timeline?.length ?? 0;
+  const where = state.place?.name ?? "This spot";
+  const announce =
+    state.status === "loading"
+      ? "Reading the record…"
+      : state.status === "done"
+        ? n > 0
+          ? `${where}: ${n} ${n === 1 ? "record" : "records"}`
+          : `${where}: nothing on record yet`
+        : "";
 
   const sheetStyle: React.CSSProperties | undefined =
     phone && drag !== null
@@ -203,16 +236,14 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
             onPointerMove={onHandleMove}
             onPointerUp={onHandleUp}
             onPointerCancel={() => (setDrag(null), (dragStart.current = null))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setExpanded((x) => !x);
-              }
-            }}
+            onClick={onHandleClick}
           >
             <span className="hh-handle-bar" aria-hidden />
           </button>
-          <div className="hh-panel-scroll" ref={scrollRef}>
+          <p className="sr-only" role="status" aria-live="polite">
+            {announce}
+          </p>
+          <div className="hh-panel-scroll" ref={scrollRef} onFocus={onSheetFocus}>
             {offline && (
               <p className="hh-notice hh-notice-offline" role="status">
                 You&rsquo;re offline. The map and stories need a connection.
@@ -241,15 +272,24 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
 
       <div className="hh-tools" role="group" aria-label="Map tools">
         <button
+          ref={todayBtn}
           type="button"
           className="hh-tool hh-tool-label"
+          aria-label="On this day"
           aria-expanded={todayOpen}
           onClick={() => setTodayOpen((x) => !x)}
         >
           <CalendarDays size={18} aria-hidden />
           <span>On this day</span>
         </button>
-        <button type="button" className="hh-tool" aria-label="Find my location" onClick={locate} data-busy={locating || undefined}>
+        <button
+          type="button"
+          className="hh-tool"
+          aria-label="Find my location"
+          onClick={locate}
+          data-busy={locating || undefined}
+          aria-busy={locating || undefined}
+        >
           <LocateFixed size={18} aria-hidden />
         </button>
         <div className="hh-zoom">
@@ -270,7 +310,7 @@ export function Explorer({ initial, initialStory }: ExplorerProps) {
               setExpanded(false);
               pick(lat, lng, { fly: true, zoom: 11 });
             }}
-            onClose={() => setTodayOpen(false)}
+            onClose={closeToday}
           />
         </div>
       )}

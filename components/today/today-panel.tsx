@@ -40,7 +40,7 @@ export function TodayPanel({ onPick, onClose }: TodayPanelProps) {
       })
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) return;
-        setState({ status: "error", message: err instanceof Error ? err.message : "Could not load today's list." });
+        setState({ status: "error", message: err instanceof Error ? err.message : "Couldn’t load today’s list." });
       });
     return () => ctrl.abort();
   }, [month, day, attempt]);
@@ -75,14 +75,15 @@ export function TodayPanel({ onPick, onClose }: TodayPanelProps) {
           type="button"
           onClick={onClose}
           aria-label="Close On this day"
-          className="-mr-1 -mt-0.5 grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[var(--ink)] hover:bg-[var(--paper-deep)]"
+          className="-mr-2 -mt-1.5 grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[var(--ink)] hover:bg-[var(--paper-deep)]"
         >
           <X size={18} aria-hidden />
         </button>
       </header>
 
+      {state.status === "loading" && <p className="sr-only">Loading today&rsquo;s anniversaries&hellip;</p>}
       {state.status === "loading" && (
-        <ul className="m-0 list-none p-0" aria-busy="true" aria-label="Loading">
+        <ul className="m-0 list-none p-0" aria-hidden>
           {[0, 1, 2, 3].map((i) => (
             <li key={i} className="flex gap-4 border-b border-[var(--paper-deeper)] px-4 py-3.5 last:border-b-0">
               <div className="h-6 w-12 animate-pulse rounded-[2px] bg-[var(--paper-deep)]" />
@@ -154,7 +155,7 @@ function TodayRow({ item, onPick }: { item: TodayItem; onPick: TodayPanelProps["
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[14px] leading-[1.45]">{item.text}</span>
-          <span className="mt-1.5 flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
+          <span className="mt-1.5 flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent-text)]">
             <MapPin size={13} aria-hidden className="shrink-0" />
             <span className="truncate">{item.title}</span>
           </span>

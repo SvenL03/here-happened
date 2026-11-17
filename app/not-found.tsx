@@ -3,22 +3,30 @@ import brand from "@/lib/brand";
 
 export const metadata = { title: "Not found" };
 
+// CSS tokens (globals.css) so the page follows dark mode like the rest of the app.
+const c = {
+  paper: "var(--paper)",
+  paperDeep: "var(--paper-deep)",
+  ink: "var(--ink)",
+  inkSoft: "var(--ink-soft)",
+  accent: "var(--accent)",
+  accentInk: "var(--accent-ink)",
+};
+
 export default function NotFound() {
-  const c = brand.light;
   return (
     <main
       style={{
-        minHeight: "100dvh",
+        // body is overflow:hidden for the map, so this page scrolls itself; margin:auto centres without clipping.
+        height: "100dvh",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         padding: "24px 16px",
         background: c.paper,
         color: c.ink,
         overflowY: "auto",
       }}
     >
-      <div style={{ maxWidth: 440, width: "100%" }}>
+      <div style={{ maxWidth: 440, width: "100%", margin: "auto" }}>
         <p
           style={{
             display: "flex",

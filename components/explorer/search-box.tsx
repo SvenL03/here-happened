@@ -79,6 +79,8 @@ export function SearchBox({ onPick }: { onPick: (hit: SearchHit) => void }) {
 
   const short = q.trim().length < 2;
   const shown = short ? [] : hits;
+  const listOpen = open && shown.length > 0;
+  const message = open && (failed || (!busy && !short && shown.length === 0));
 
   const choose = (h: SearchHit) => {
     setOpen(false);
@@ -98,14 +100,17 @@ export function SearchBox({ onPick }: { onPick: (hit: SearchHit) => void }) {
         id={`${listId}-input`}
         className="hh-search-input"
         type="search"
+        name="q"
+        enterKeyHint="search"
         autoComplete="off"
         spellCheck={false}
-        placeholder="Search any place or landmark"
+        placeholder="Search any place or landmark…"
         value={q}
         role="combobox"
-        aria-expanded={open && shown.length > 0}
+        aria-autocomplete="list"
+        aria-expanded={listOpen}
         aria-controls={listId}
-        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+        aria-activedescendant={listOpen && active >= 0 ? `${listId}-${active}` : undefined}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => shown.length && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -131,10 +136,19 @@ export function SearchBox({ onPick }: { onPick: (hit: SearchHit) => void }) {
           <X size={16} aria-hidden />
         </button>
       )}
-      {open && (shown.length > 0 || failed || (!busy && !short)) && (
-        <ul id={listId} role="listbox" className="hh-search-list">
-          {failed && <li className="hh-search-empty">Search is unreachable right now. You can still tap the map.</li>}
-          {!failed && shown.length === 0 && <li className="hh-search-empty">No place by that name. Try a town or a landmark.</li>}
+      {/* Messages sit outside the listbox: a listbox may only hold options. */}
+      {message && !listOpen && (
+        <div className="hh-search-list">
+          <p className="hh-search-empty">
+            {failed ? "Search is unreachable right now. You can still tap the map." : "No place by that name. Try a town or a landmark."}
+          </p>
+        </div>
+      )}
+      <p className="sr-only" role="status" aria-live="polite">
+        {listOpen ? `${shown.length} ${shown.length === 1 ? "place" : "places"} found` : message ? "No places found" : ""}
+      </p>
+      {listOpen && (
+        <ul id={listId} role="listbox" aria-label="Places" className="hh-search-list">
           {shown.map((h, i) => (
             <li
               key={h.id}

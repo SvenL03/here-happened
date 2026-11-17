@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Newsreader, Overpass } from "next/font/google";
+import { preconnect } from "react-dom";
 import { SITE_URL } from "@/lib/featured";
 import "./globals.css";
 
@@ -50,6 +51,8 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // The map style, tiles and glyphs all come from OpenFreeMap (CORS fetches): open the connection early.
+  preconnect("https://tiles.openfreemap.org", { crossOrigin: "anonymous" });
   return (
     <html lang="en" className={`${display.variable} ${ui.variable}`}>
       <body>{children}</body>

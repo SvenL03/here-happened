@@ -148,7 +148,18 @@ export function MapCanvas({
           if (!cancelled) setReady(true);
         });
         map.on("click", (e) => onPickRef.current(e.lngLat.lat, e.lngLat.lng));
-        map.getCanvas().setAttribute("aria-label", "Map. Click or tap anywhere to read its history.");
+        // Keyboard path: arrow keys pan (MapLibre), Enter reads the history at the centre of the visible map.
+        const canvas = map.getCanvas();
+        canvas.setAttribute(
+          "aria-label",
+          "Map. Click or tap anywhere to read its history. With a keyboard, pan with the arrow keys and press Enter to read the centre.",
+        );
+        canvas.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const c = map.getCenter();
+          onPickRef.current(c.lat, c.lng);
+        });
         onScheme = () => map.setStyle(styleFor(), { diff: true });
         mq.addEventListener("change", onScheme);
         apiRef.current = {
