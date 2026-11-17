@@ -134,6 +134,18 @@ function pickAncestor(chain: AdminChain, names: (string | undefined)[]): AdminAr
   );
 }
 
+const GENERIC_NAME_WORDS = new Set([
+  "province", "county", "city", "region", "state", "metropolitan", "capital", "district", "greater", "department",
+  "prefecture", "oblast", "krai", "governorate", "municipality", "territory", "republic", "kingdom", "federal",
+  "united", "states", "the", "of", "and", "upper", "lower", "north", "south", "east", "west", "central", "new",
+]);
+
+/** Distinctive word stems of a place name: "Tindouf Province" → ["tindo"], "Bavaria" → ["bavar"], "Ohio" → ["ohio"]. */
+function nameStems(name: string): string[] {
+  const words = norm(name.replace(/\(.*?\)/g, " ")).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !GENERIC_NAME_WORDS.has(w));
+  return Array.from(new Set(words.map((w) => (w.length > 6 ? w.slice(0, w.length - 2) : w.length > 4 ? w.slice(0, 5) : w))));
+}
+
 export async function buildPlaceStory(lat: number, lng: number, emit?: (e: PlaceEvent) => void): Promise<PlaceStory> {
   const t0 = Date.now();
   let partial = false;
@@ -260,7 +272,13 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
     jobs.push(
       soft(fullText(l, title), null).then((a) => {
         if (!a) return;
-        const mined = mine(pickText(a.text, mode), l, scope, placeName, wikiSource(l, a.title, a.url), dist, base, rankAdj);
+        let mined = mine(pickText(a.text, mode), l, scope, placeName, wikiSource(l, a.title, a.url), dist, base, rankAdj);
+        // A region or country article is full of other places ("a Celtic settlement north of Munich" in Bavaria's
+        // history). Keep only sentences that name the region or country itself, so wide context stays about here.
+        if (scope === "region" || scope === "country") {
+          const stems = nameStems(`${placeName} ${a.title}`);
+          if (stems.length) mined = mined.filter((m) => stems.some((st) => norm(m.text).includes(st)));
+        }
         if (rankAdj >= 2) for (const m of mined) m.sourceCap = 4;
         cands.push(...mined);
       }),
