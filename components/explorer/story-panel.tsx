@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Share2, RotateCw, ZoomOut } from "lucide-react";
 import { ERAS, type EraId, type Scope, type TimelineEntry } from "@/lib/contract";
 import type { StoryState } from "./use-place-story";
-import { SCOPE_NAME, SCOPE_ORDER, fmtCoords, fmtKm, langName, scopeLabel, yearSpan } from "./format";
+import { SCOPE_NAME, SCOPE_ORDER, fmtCoords, fmtKm, langName, scopeLabel, sourceHref, yearSpan } from "./format";
 
 export const SUGGESTIONS = [
   { label: "Colosseum, Rome", lat: 41.89, lng: 12.492 },
@@ -76,7 +76,7 @@ function Entry({ e }: { e: TimelineEntry }) {
         <span className={`hh-chip hh-chip-${e.scope}`}>
           <Dotted text={scopeLabel(e)} />
         </span>
-        <a className="hh-src" href={e.source.url} target="_blank" rel="noopener noreferrer">
+        <a className="hh-src" href={sourceHref(e.source.url, e.text)} target="_blank" rel="noopener noreferrer">
           <span className="hh-src-title">{e.source.title}</span>
           <span className="hh-src-pub">
             <Sep />

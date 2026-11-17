@@ -14,7 +14,12 @@ export interface DatedSentence {
   weak: boolean;
 }
 
-const ANAPHOR = /^(?:All (?:two|three|four|five|six|of them)|These|Those|They|It|Its|This|He|She|His|Her|Their|The latter|The former|Both|Them|Such)\b/;
+const ANAPHOR =
+  /^(?:All (?:two|three|four|five|six|of them)|These|Those|They|It|Its|This|He|She|His|Her|Their|The latter|The former|Both|Them|Such|Many [^,.]{0,60}(?:claim|say|consider|regard) (?:them|him|her|it)\b|Dieser|Diese|Dieses|Diesen|Diesem|Er|Sie|Es|Dort|Hier|Zudem|Dabei|Danach|Später|Anschließend|Elle|Ils|Elles|Ce|Cette|Ces|Lui|Esso|Essa|Egli|Ella|Él|Ella|Ellos|Este|Esta)\b/;
+/** A bare definite noun as subject ("The name", "The passage", "The structure") with no proper noun before the verb. */
+const BARE_DEFINITE = /^The (?:name|passage|structure|building|house|church|town|village|city|area|region|site|complex|work|project|restoration|work|walls?|tower|bridge|castle|temple|palace|fort|school|reserve|park|company|group|family|battle|war|treaty|decision|move|move|plan|effort|fire|storm|flood)\b(?! of\b)/;
+/** Future tense for a date already in the past, or a verb that points back ("followed", "also"). */
+const POINTS_BACK = /\b(?:followed|subsequently|likewise|also (?:was|were|had))\b/;
 const TRIVIA =
   /\b(?:team|teams|season|championships?|qualif\w*|playoffs?|varsity|tournament|state meet|semi-?finals?|runners?-up|touchdowns?|head coach|athletic conference|bowl game|all-state|mascot)\b|\bwon (?:the|a|its|their) [^.]{0,40}\b(?:title|cup|trophy|championship)\b|\b(?:best places|best small towns?|most livable|ranked (?:no\.|number|#|first|second|third|among)|named (?:one|among) of the|readers'? choice|top (?:\d+|ten|twenty|fifty|100) (?:places|towns|cities|destinations))\b/i;
 
@@ -28,7 +33,7 @@ const ABBREV = new Set(
     "rev", "gov", "sen", "rep", "prof", "approx", "est", "inc", "co", "corp", "ltd", "u.s", "e.g", "i.e", "etc", "al",
     "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sept", "sep", "oct", "nov", "dec", "a.d", "b.c", "fl", "r",
     "bzw", "ggf", "chr", "jh", "jhd", "nr", "vgl", "evtl", "hl", "bzw", "z.b", "u.a", "d.h", "s", "bd", "sog", "gest",
-    "geb", "ehem", "lit", "ss", "sts", "abt", "bros", "dept", "univ", "urspr", "mgr", "av", "j.-c", "apr", "a.c", "d.c", "sec", "secc", "op", "cf",
+    "geb", "ehem", "lit", "ss", "sts", "abt", "bros", "dept", "univ", "urspr", "mgr", "rd", "inkl", "max", "min", "zw", "n", "ca", "etwa", "av", "j.-c", "apr", "a.c", "d.c", "sec", "secc", "op", "cf",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -128,6 +133,51 @@ function plainYears(s: string, prefixRe: string): Hit[] {
   return out;
 }
 
+/**
+ * Years 1–999 written without AD/CE ("In 217, the Colosseum was badly damaged", "around 435", "from 360 until 1453").
+ * Only used when the source text already carries AD/CE-era markers (see datedSentences), and only after a dating
+ * word, with a following token that makes a year likelier than a count ("in 300 people" is not a year).
+ */
+const EARLY_PREP: Record<string, string> = {
+  en: "in|by|around|about|until|till|since|from|after|before|c\\.|ca\\.|circa|and again in|at least|approximately|and",
+  de: "im Jahr|im Jahre|in|um|ca\\.|etwa|seit|ab|bis|nach|vor",
+  fr: "en|vers|circa|ca\\.|c\\.|depuis|jusqu'en|après|avant",
+  it: "nel|nell'anno|verso|circa|ca\\.|dal|fino al|dopo|prima del",
+  es: "en|hacia|circa|ca\\.|desde|hasta|en el año|después de",
+  pt: "em|por volta de|circa|ca\\.|desde|até|em torno de",
+};
+const EARLY_NEXT: Record<string, string> = {
+  en: "and|or|until|till|to|when|while|by|after|before|the|a|he|she|it|they|was|were|had|with|but|as|under|during|from|which|that|at|then|again|on|its|in|for|of",
+  de: "und|oder|bis|wurde|wurden|war|ist|erhielt|der|die|das|ein|eine|mit|als|nach|vor|im|hatte|von|dann|in|am",
+  fr: "et|ou|puis|fut|est|était|la|le|les|un|une|par|avec|lorsque|quand|à|en|de",
+  it: "e|o|fino|fu|è|era|la|il|lo|un|una|con|quando|poi|di|in",
+  es: "y|o|hasta|fue|es|era|la|el|los|un|una|con|cuando|luego|de|en",
+  pt: "e|ou|até|foi|é|era|a|o|um|uma|com|quando|depois|de|em",
+};
+
+function earlyYears(s: string, lang: string): Hit[] {
+  const key = lang in EARLY_PREP ? lang : ["nl", "sv", "da", "no"].includes(lang) ? "de" : "";
+  if (!key) return [];
+  const re = new RegExp(`(^|[^\\d,.$€£#/:\\-–])((?:${EARLY_PREP[key]})\\s+)(\\d{1,3})\\b(?![,.]?\\d)`, "gi");
+  const nextRe = new RegExp(`^\\s+(?:${EARLY_NEXT[key]})\\b`, "i");
+  const out: Hit[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s))) {
+    const n = Number(m[3]);
+    if (n < 1) continue;
+    const after = s.slice(m.index + m[0].length);
+    if (UNIT_AFTER.test(after)) continue;
+    const punct = /^\s*(?:[,;:.)]|$)/.test(after);
+    const word = nextRe.test(after);
+    if (!punct && !word) continue;
+    // One or two digits are a year only when a comma or full stop follows ("in 80, and"), never before a word.
+    if (n < 100 && !punct) continue;
+    const start = m.index + m[1].length + m[2].length;
+    out.push({ index: start, length: m[3].length, year: n, label: m[3] });
+  }
+  return out;
+}
+
 /** "1300 to 1200 BCE", "c. 3000–1500 BCE", "Between 1,000 and 800 BC": the era applies to the whole range. */
 function bcRanges(s: string, eraRe: string, circaRe: string): Hit[] {
   const re = new RegExp(
@@ -199,8 +249,9 @@ function matcherFor(lang: string): Matcher {
 }
 
 /** First date mentioned in the sentence (the earliest position wins; at a tie, the longest match). */
-export function findDate(sentence: string, lang: string): { year: number; dateLabel: string; weak: boolean } | null {
+export function findDate(sentence: string, lang: string, early = false): { year: number; dateLabel: string; weak: boolean } | null {
   const hits = matcherFor(lang)(sentence);
+  if (early) hits.push(...earlyYears(sentence, lang));
   if (!hits.length) return null;
   // Prefer dates outside parentheses (a reign "(r. 69–79 AD)" or a life span is not the event).
   const depth = (i: number) => {
@@ -233,6 +284,8 @@ const STATS =
 /** Pull dated sentences out of a block of plain text. */
 export function datedSentences(text: string, lang: string): DatedSentence[] {
   const out: DatedSentence[] = [];
+  // Bare years under 1000 ("In 217") count only in an article that already dates things with AD/CE.
+  const early = /\b\d{1,4}\s?(?:AD|CE|A\.D\.)\b|\b(?:AD|A\.D\.)\s?\d|n\.\s?Chr\.|ap\.\s?J\.-C\.|d\.\s?C\./.test(text);
   for (const para of text.split(/\n+/)) {
     const p = para.trim();
     if (!p || /^=+.*=+$/.test(p)) continue;
@@ -253,11 +306,16 @@ export function datedSentences(text: string, lang: string): DatedSentence[] {
       if (years.length >= 4 && s.length < 200) continue; // list-like
       if (/(^|\s)(ISBN|doi:|Retrieved|Archived|pp?\.\s*\d)/.test(s)) continue;
       if (TRIVIA.test(s)) continue;
-      const d = findDate(s, lang);
+      const d = findDate(s, lang, early);
       if (!d) continue;
       let text = s;
       // "All three disappeared in the 17th century." means nothing alone: join the previous sentence (still verbatim, consecutive) or drop.
-      if (lang === "en" && (ANAPHOR.test(s) || /\b(?:the|this|that) (?:village|magazine|book|film|newspaper|company)\b/i.test(s))) {
+      // Future tense about a date that has passed ("will be opened ... on 27 October 2025"): stale, not history.
+      if (lang === "en" && /\bwill be\b/.test(s) && d.year <= CURRENT_YEAR) continue;
+      if (
+        ANAPHOR.test(s) ||
+        (lang === "en" && (BARE_DEFINITE.test(s) || POINTS_BACK.test(s) || /\b(?:the|this|that) (?:village|magazine|book|film|newspaper|company)\b/i.test(s)))
+      ) {
         const prev = sents[i - 1];
         if (!prev || prev.length + 1 + s.length > 420) continue;
         text = `${prev} ${s}`;
@@ -282,7 +340,7 @@ export function firstSentence(text: string, lang: string): string | undefined {
 const HISTORY_HEAD =
   /histor|geschicht|histoire|storia|historia|história|geschiedenis|dzieje|история|歴史|历史|沿革|founding|settlement|origins|antiquity|middle ages|etymology|archaeolog|chronolog|ancient|medieval|colonial|war\b|construction|later use|origin|names?$/i;
 const SKIP_HEAD =
-  /see also|references|external links|notes|further reading|bibliography|sources|gallery|literatur|weblinks|einzelnachweise|anmerkungen|siehe auch|liens externes|références|bibliographie|note|voci correlate|collegamenti esterni|referencias|enlaces externos|demograph|bevölkerung|population|climate|klima|climat|education|bildung|notable people|persönlichkeiten|personnalités|sport|transport|verkehr|economy|wirtschaft|media|government|politik|politics|twin towns|partnerstädte/i;
+  /see also|references|external links|notes|further reading|bibliography|sources|gallery|literatur|weblinks|einzelnachweise|anmerkungen|siehe auch|liens externes|références|bibliographie|note|voci correlate|collegamenti esterni|referencias|enlaces externos|demograph|bevölkerung|einwohner|population|climate|klima|climat|education|bildung|notable people|persönlichkeiten|personnalités|sport|transport|verkehr|economy|wirtschaft|media|government|politik|politics|twin towns|partnerstädte/i;
 
 export interface Section {
   heading: string;
@@ -305,20 +363,39 @@ export function splitSections(extract: string): Section[] {
  * Pick the text worth mining. mode "all": everything except reference/statistics sections (for the spot itself).
  * mode "history": the lead plus History-type sections and their subsections.
  */
+const POP_HEAD = /popular culture|in media|in fiction|in literature|in film|in music|in the arts|in art\b|cultural references?|legacy|trivia|in games|in television/i;
+const LATE_HEAD = /etymology|nomenclature|^names?$|naming|namensherkunft|étymologie|etimologia/i;
+const RESCUE_HEAD = /education|bildung|notable people|persönlichkeiten|personnalités/i;
+
+/** Education / notable-people sections of a town or spot article; the caller keeps only sentences that name the place. */
+export function pickRescue(extract: string): string {
+  const secs = splitSections(extract);
+  return secs.filter((s) => s.heading && RESCUE_HEAD.test(s.heading) && !POP_HEAD.test(s.heading)).map((s) => s.text).join("\n");
+}
+
 export function pickText(extract: string, mode: "all" | "history" | "history-only"): string {
   const secs = splitSections(extract);
-  const keep: string[] = [];
+  const late: string[] = []; // etymology and naming come after the history proper
+  const keepMain: string[] = [];
+  let toLate = false;
+  const keep = {
+    push(t: string) {
+      (toLate ? late : keepMain).push(t);
+    },
+  };
   let inHistory = false;
   let historyLevel = 0;
   let skipLevel = 0;
   for (const s of secs) {
     if (s.heading === "") {
+      toLate = false;
       if (mode !== "history-only") keep.push(s.text);
       continue;
     }
     if (skipLevel && s.level > skipLevel) continue;
     skipLevel = 0;
-    if (SKIP_HEAD.test(s.heading) && !HISTORY_HEAD.test(s.heading)) {
+    toLate = LATE_HEAD.test(s.heading);
+    if (POP_HEAD.test(s.heading) || (SKIP_HEAD.test(s.heading) && !HISTORY_HEAD.test(s.heading))) {
       skipLevel = s.level;
       if (inHistory && s.level <= historyLevel) inHistory = false;
       continue;
@@ -338,5 +415,5 @@ export function pickText(extract: string, mode: "all" | "history" | "history-onl
       keep.push(s.text);
     }
   }
-  return keep.join("\n");
+  return [...keepMain, ...late].join("\n");
 }

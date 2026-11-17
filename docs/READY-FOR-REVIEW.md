@@ -70,3 +70,27 @@ Written 2026-11-16, about 20:00 ET. Branch `rework-2026-11` (latest commit on Gi
   - dark mode on the preview (the screen helper checked it locally)
   - real-device touch dragging of the sheet
 - **Wikimedia load:** each new place makes about 10–14 requests to Wikimedia, at most 6 at a time.
+
+## Review round 1: what I did with the 12 confirmed findings (20:35 ET)
+
+Source: the coordinator's independent review (partial: the "years and eras" lens never ran). Fixes are in the engine, so the cache was cleared and the preview rebuilds on push.
+
+| # | Finding | Result |
+|---|---|---|
+| 1 (high) | Years 1–999 without AD/CE never parsed | **Fixed.** `earlyYears()` in `lib/history/dates.ts`: a bare 1–3 digit year after a dating word (in, around, until, since, from…; German, French, Italian, Spanish, Portuguese equivalents), only in an article that already uses AD/CE, never before a unit or a count noun ("in 300 people"). One or two digits count only before a comma or full stop. 9 new self-tests (25 checks total), including the review's sentences. Colosseum now shows 217 (fire), 399/404 (ban), 435 (last games), 523 and the 1349 earthquake; Hagia Sophia shows 339, 360, 405 and AD 537. To let them through, the selector now penalises years within 8 of one already picked (70, 72, 79, 80 were one event). |
+| 2 | Cedarville University dropped (Education section skipped); one house supplies a quarter of the story | **Fixed.** Education and notable-people sections are mined for town and spot articles, keeping only sentences that name the place ("Cedarville University… since 1887" is in). Nearby sources are capped at 2 entries each. |
+| 3 | Within an article, order of appearance decides; Colosseum fills slots with etymology | **Fixed.** Etymology and naming sections now come after the history sections, and "In popular culture", "Legacy" and similar sections are skipped. |
+| 4 | Colosseum "1942" is about a look-alike building | **Fixed** by skipping "In popular culture". I did not add a rule that the spot's name must be the sentence's subject: too blunt for the many true sentences that open with a pronoun or a person. |
+| 5 | "The name received official recognition… in 1838" with no context | **Fixed.** Sentences opening with a bare definite noun (the name, the passage, the structure…) join the previous sentence or are dropped. |
+| 6 | German sentence cut at "rd." | **Fixed.** Abbreviations added (rd, inkl, max, min, zw, ca, etwa); "Einwohner" sections count as statistics. |
+| 7 | The 9 kB German church article is thrown away for a 2-sentence English stub | **Fixed.** When the local-language article is more than twice as long (and over 4 kB), it is mined too. The church now has its 1430/40 tower, the 1713–1719 baroque redesign and the 1749 chapel, in German. |
+| 8 | Unresolved references shown alone (English-only, sentence-initial only) | **Mostly fixed.** The join rule now also covers German, French, Italian and Spanish pronouns, object pronouns ("claim them"), "followed", bare definite subjects, and drops "will be…" sentences about dates already past. Not exhaustive: other languages and mid-sentence references remain. |
+| 9 | Coverage note promises a town story that isn't there | **Fixed.** The note names a wider place only if an entry in the final timeline comes from it. |
+| 10 | Header "250 BCE to 2007" is a computed midpoint | **Fixed.** The span uses the first and last entries' own date labels, from the spot, nearby and town when there are at least three. |
+| 11 | Region entries about other parts of the region | **Partly fixed.** Sentences that name a sub-area ("northern Ohio") or open "In <Town>, <Upper Region>" are dropped. A sentence about a distant part that avoids those patterns can still get through. |
+| 12 | Source links open the top of the article | **Fixed.** Links carry a text fragment (`#:~:text=` plus the sentence's first seven words), so supporting browsers scroll to and highlight the sentence; others open the article as before. |
+| plausible | Date chip isn't the event's year in about 6% of entries | **Not fixed.** The sentence stays verbatim, so the reader sees the context. A "which / until" weak-year rule would help; it is the next thing I'd do. |
+
+I disagree with nothing in the confirmed list; items 4, 8 and 11 are the ones where I went only part of the way, for the reasons above.
+
+My own pass on the years-and-eras lens (the reviewers never ran it): BCE ranges, decades, "13,000 BC", German centuries and `v. Chr.`, parenthesised reigns and unit counts are covered by the 25 self-tests, and all pass. Japanese dates (紀元前, 約300年前) are not handled: the parser reads 紀元前300年 as AD 300. That is open; no Japanese test place surfaced it.

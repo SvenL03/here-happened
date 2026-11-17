@@ -22,7 +22,24 @@ function selftest(): boolean {
     ["de", "Funde belegen eine Besiedlung um 1300–1200 v. Chr. im Tal.", -1300, "c. 1300–1200 v. Chr."],
     ["fr", "La ville est fondée au XIIe siècle par les moines.", 1150, "XIIe siècle"],
   ];
+  const earlyCases: [string, string, number, string][] = [
+    ["en", "In 217, the Colosseum was badly damaged by a major fire.", 217, "217"],
+    ["en", "Honorius banned the practice of gladiator fights in 399 and again in 404.", 399, "399"],
+    ["en", "Gladiatorial fights are last mentioned around 435.", 435, "435"],
+    ["en", "From its dedication in 360 until 1453 it served as a cathedral.", 360, "360"],
+    ["en", "It was finished by his son, Titus, in 80, and dedicated again in 80 or 81 AD.", 80, "80"],
+    ["en", "Animal hunts continued until at least 523 in the arena.", 523, "523"],
+    ["en", "The villa housed more than 300 people in 1850.", 1850, "1850"],
+    ["en", "The wall stood in 300 metres of woods, rebuilt in 1850.", 1850, "1850"],
+    ["de", "Im Jahr 532 wurde die Kirche zerstört.", 532, "532"],
+  ];
   let ok = true;
+  for (const [lang, text, year, label] of earlyCases) {
+    const d = findDate(text, lang, true);
+    const pass = d?.year === year && d?.dateLabel === label;
+    if (!pass) ok = false;
+    console.log(`${pass ? "PASS" : "FAIL"} early ${lang} ${JSON.stringify(text)} → ${d ? `${d.year} "${d.dateLabel}"` : "null"}${pass ? "" : ` (want ${year} "${label}")`}`);
+  }
   for (const [lang, text, year, label] of cases) {
     const d = findDate(text, lang);
     const pass = d?.year === year && d?.dateLabel === label;

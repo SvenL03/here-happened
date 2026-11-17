@@ -47,11 +47,31 @@ export function langName(code: string): string {
   }
 }
 
+/** A date label as printed in the panel header: bare years under 1000 get "AD". */
+function spanLabel(e: TimelineEntry): string {
+  const l = e.dateLabel.trim();
+  return /^\d{1,3}$/.test(l) ? `AD ${l}` : l;
+}
+
+/**
+ * "13,000 BC to 2002": the first and last entries' own date labels, never a computed midpoint
+ * (a "2nd century BC" entry sorts as -150 but must not print as "150 BCE"). When at least three entries come from
+ * the spot, nearby or the town, only those set the span, so a region-wide prehistory doesn't stretch it.
+ */
 export function yearSpan(entries: TimelineEntry[]): string {
   if (!entries.length) return "";
-  const ys = entries.map((e) => e.year);
-  const f = (y: number) => (y < 0 ? `${Math.abs(y).toLocaleString("en-US")} BCE` : y < 1000 ? `AD ${y}` : String(y));
-  const a = Math.min(...ys);
-  const b = Math.max(...ys);
-  return a === b ? f(a) : `${f(a)} to ${f(b)}`;
+  const close = entries.filter((e) => e.scope === "spot" || e.scope === "nearby" || e.scope === "town" || e.scope === "sea");
+  const pool = (close.length >= 3 ? close : entries).slice().sort((a, b) => a.year - b.year);
+  const a = spanLabel(pool[0]);
+  const b = spanLabel(pool[pool.length - 1]);
+  return a === b ? a : `${a} to ${b}`;
+}
+
+/** The source link with a text fragment, so the browser scrolls to and highlights the quoted sentence. */
+export function sourceHref(url: string, text: string): string {
+  if (url.includes("#")) return url;
+  const words = text.replace(/\s+/g, " ").trim().split(" ").slice(0, 7).join(" ");
+  if (words.length < 12) return url;
+  const enc = encodeURIComponent(words).replace(/-/g, "%2D").replace(/'/g, "%27");
+  return `${url}#:~:text=${enc}`;
 }

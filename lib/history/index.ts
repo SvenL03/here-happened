@@ -5,7 +5,7 @@
  */
 import type { Coverage, NearbyItem, PlaceEvent, PlaceStory, Scope, Source, TimelineEntry } from "@/lib/contract";
 import { eraForYear } from "@/lib/contract";
-import { datedSentences, firstSentence, pickText } from "./dates";
+import { datedSentences, firstSentence, pickRescue, pickText } from "./dates";
 import { namesMatch, norm, round1, within } from "./net";
 import { resolvePlace, toPlaceInfo } from "./place";
 import type { AdminArticle, AdminChain, DatedItem, GeoPage } from "./wiki";
@@ -93,6 +93,9 @@ function select(cands: Candidate[]): Candidate[] {
   while (picked.length < MAX_ENTRIES && left.length) {
     let bi = 0;
     let best = Infinity;
+    // Entries a few years apart usually tell one event (70, 72, 79, 80: the building of the Colosseum): each one
+    // already picked within 8 years of a candidate makes it cost more, so other decades get their turn.
+    const nearYears = (c: Candidate) => 0.8 * picked.filter((p) => p.year !== c.year && Math.abs(p.year - c.year) <= 8).length;
     for (let i = 0; i < left.length; i++) {
       const c = left[i];
       const era = eraForYear(c.year);
@@ -100,7 +103,7 @@ function select(cands: Candidate[]): Candidate[] {
       if (scopeCount >= (SCOPE_CAP[c.scope] ?? MAX_ENTRIES)) continue;
       if (c.sourceCap !== undefined && (perSource.get(c.source.id) ?? 0) >= c.sourceCap) continue;
       const cost =
-        1.5 * SCOPE_RANK[c.scope] + c.rankAdj + (c.weak ? 2 : 0) + 0.7 * (perEra.get(era) ?? 0) + 1.5 * (perYear.get(c.year) ?? 0) + c.order * 0.0001;
+        1.5 * SCOPE_RANK[c.scope] + c.rankAdj + (c.weak ? 2 : 0) + 0.7 * (perEra.get(era) ?? 0) + 1.5 * (perYear.get(c.year) ?? 0) + nearYears(c) + c.order * 0.0001;
       if (cost < best) {
         best = cost;
         bi = i;
@@ -215,6 +218,11 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
   const datedByQid = new Map(dated.map((d) => [d.qid, d]));
   const enQids = new Set(geoEn.map((p) => p.qid).filter(Boolean));
   const geoAll = [...geoEn, ...geoLoc.filter((p) => !p.qid || !enQids.has(p.qid))].sort((a, b) => a.distanceKm - b.distanceKm);
+  // The same item in the local language, when its article is much fuller than the English one (a 2-sentence English
+  // stub for a church that has a 9 kB German history): kept as extra spot sources. The "same year in English" rule in
+  // select() already drops duplicates of the facts both say.
+  const enByQid = new Map(geoEn.filter((p) => p.qid).map((p) => [p.qid as string, p]));
+  const fullerLocal = geoLoc.filter((p) => p.qid && enByQid.has(p.qid) && (p.length ?? 0) > 2 * (enByQid.get(p.qid as string)?.length ?? 0) && (p.length ?? 0) > 4000);
   const nearby: NearbyItem[] = [];
   const nearbyQids = new Set<string>();
   for (const p of geoAll) {
@@ -278,6 +286,18 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
         if (scope === "region" || scope === "country") {
           const stems = nameStems(`${placeName} ${a.title}`);
           if (stems.length) mined = mined.filter((m) => stems.some((st) => norm(m.text).includes(st)));
+          // "Much of northern Ohio", "In Manching, Upper Bavaria": a sub-area or another settlement, not the region itself.
+          const subArea = new RegExp(`\\b(?:northern|southern|eastern|western|north|south|east|west|upper|lower|central)\\s+(?:${stems.map((st) => st.replace(/[^a-z0-9]/g, "")).join("|")})`, "i");
+          mined = mined.filter((m) => !subArea.test(norm(m.text)) && !/^In [A-Z][\p{L}-]+, (?:Upper |Lower )?[A-Z]/u.test(m.text));
+        }
+        if (scope === "spot" || scope === "town") {
+          const stems = nameStems(`${placeName} ${a.title}`);
+          const rescued = stems.length
+            ? mine(pickRescue(a.text), l, scope, placeName, wikiSource(l, a.title, a.url), dist, base + 500, rankAdj).filter((m) =>
+                stems.some((st) => norm(m.text).includes(st)),
+              )
+            : [];
+          mined = [...mined, ...rescued];
         }
         if (rankAdj >= 2) for (const m of mined) m.sourceCap = 4;
         cands.push(...mined);
@@ -325,9 +345,17 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
       usedTitles.add(`${p.lang}:${p.title}`);
       addFull(p.lang, p.title, "all", "spot", p.title, p.distanceKm);
     }
+    for (const p of fullerLocal.filter((p) => p.distanceKm <= 0.6)) {
+      if (spots.some((sp) => sp.qid === p.qid) || spotPage?.qid === p.qid) {
+        usedTitles.add(`${p.lang}:${p.title}`);
+        addFull(p.lang, p.title, "all", "spot", spotPage?.title ?? p.title, p.distanceKm);
+      }
+    }
     // Nearby: intros of articles within 3 km.
     for (const p of geoAll.filter((p) => p.distanceKm <= 3 && notAdmin(p.title) && !spots.includes(p)).slice(0, 10)) {
-      cands.push(...mine(p.intro, p.lang, "nearby", p.title, wikiSource(p.lang, p.title, p.url), p.distanceKm, (order += 1000)));
+      const nm = mine(p.intro, p.lang, "nearby", p.title, wikiSource(p.lang, p.title, p.url), p.distanceKm, (order += 1000));
+      for (const m of nm) m.sourceCap = 2; // one house must not supply a quarter of a town's story
+      cands.push(...nm);
     }
     const chain = await chainP;
     const town = startLevel === "town" ? chain.start : undefined;
@@ -441,19 +469,22 @@ function coverageFor(
     return { level: n.county ? "county" : "region", note: "Nothing dated is on record for this spot in the sources we checked." };
   }
   const best = timeline.reduce<Scope>((acc, e) => (SCOPE_RANK[e.scope] < SCOPE_RANK[acc] ? e.scope : acc), "country");
+  // Name a wider place only if at least one entry in the timeline really comes from it.
+  const present = new Set(timeline.map((e) => e.scope));
+  const only = (scope: Scope, v?: string) => (present.has(scope) ? v : undefined);
   const and = (a?: string, b?: string) => [a, b].filter(Boolean).join(" and ");
   switch (best) {
     case "spot":
-      return { level: "spot", note: `This exact spot has its own record (${n.spot ?? name})${n.town ? `, told here alongside the story of ${n.town}` : ""}.` };
+      return { level: "spot", note: `This exact spot has its own record (${n.spot ?? name})${only("town", n.town) ?? only("county", n.county) ?? only("region", n.region) ? `, with some of the wider story of ${only("town", n.town) ?? only("county", n.county) ?? only("region", n.region)}` : ""}.` };
     case "nearby":
       return {
         level: "nearby",
-        note: `Little is recorded at this exact spot; here is what's on record within a few kilometres${n.town || n.county ? `, and the story of ${and(n.town, n.county)}` : ""}.`,
+        note: `Little is recorded at this exact spot; here is what's on record within a few kilometres${and(only("town", n.town), only("county", n.county)) ? `, and the story of ${and(only("town", n.town), only("county", n.county))}` : ""}.`,
       };
     case "town":
-      return { level: "town", note: `Little is recorded at this exact spot, so this is the story of ${and(n.town, n.county)}.` };
+      return { level: "town", note: `Little is recorded at this exact spot, so this is the story of ${and(only("town", n.town), only("county", n.county)) || n.town || n.county}.` };
     case "county":
-      return { level: "county", note: `Little is recorded at this exact spot, so this is the story of ${and(n.county, n.region)}.` };
+      return { level: "county", note: `Little is recorded at this exact spot, so this is the story of ${and(only("county", n.county), only("region", n.region)) || n.county || n.region}.` };
     case "region":
       return { level: "region", note: `Little is recorded near this spot, so this is the story of ${n.region ?? name}.` };
     default:
