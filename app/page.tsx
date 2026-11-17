@@ -1,5 +1,5 @@
-import { MapView } from "@/components/map/map-view";
+import { Explorer } from "@/components/explorer/explorer";
 
 export default function Home() {
-  return <MapView />;
+  return <Explorer />;
 }
