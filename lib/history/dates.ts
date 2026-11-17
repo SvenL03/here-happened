@@ -16,7 +16,7 @@ export interface DatedSentence {
 
 const ANAPHOR = /^(?:All (?:two|three|four|five|six|of them)|These|Those|They|It|Its|This|He|She|His|Her|Their|The latter|The former|Both|Them|Such)\b/;
 const TRIVIA =
-  /\b(?:team|teams|season|championships?|qualif\w*|playoffs?|varsity|tournament|state meet|semi-?finals?|runners?-up|touchdowns?|head coach|athletic conference|bowl game|all-state|mascot)\b|\bwon (?:the|a|its|their) [^.]{0,40}\b(?:title|cup|trophy|championship)\b/i;
+  /\b(?:team|teams|season|championships?|qualif\w*|playoffs?|varsity|tournament|state meet|semi-?finals?|runners?-up|touchdowns?|head coach|athletic conference|bowl game|all-state|mascot)\b|\bwon (?:the|a|its|their) [^.]{0,40}\b(?:title|cup|trophy|championship)\b|\b(?:best places|best small towns?|most livable|ranked (?:no\.|number|#|first|second|third|among)|named (?:one|among) of the|readers'? choice|top (?:\d+|ten|twenty|fifty|100) (?:places|towns|cities|destinations))\b/i;
 
 const MONTHS_EN = "January|February|March|April|May|June|July|August|September|October|November|December";
 const MONTHS_DE = "Januar|Jänner|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
@@ -263,6 +263,7 @@ export function datedSentences(text: string, lang: string): DatedSentence[] {
         text = `${prev} ${s}`;
       }
       if (text.length < 40) continue;
+      if (text !== s && TRIVIA.test(text)) continue; // the joined sentence can carry the trivia
       out.push({ text, year: d.year, dateLabel: d.dateLabel, weak: d.weak });
     }
   }

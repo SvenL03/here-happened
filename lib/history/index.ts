@@ -426,7 +426,7 @@ function coverageFor(
   const and = (a?: string, b?: string) => [a, b].filter(Boolean).join(" and ");
   switch (best) {
     case "spot":
-      return { level: "spot", note: `This spot is on record: the story of ${n.spot ?? name}${n.town ? `, set in the story of ${n.town}` : ""}.` };
+      return { level: "spot", note: `This exact spot has its own record (${n.spot ?? name})${n.town ? `, told here alongside the story of ${n.town}` : ""}.` };
     case "nearby":
       return {
         level: "nearby",
