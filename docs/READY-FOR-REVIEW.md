@@ -71,7 +71,7 @@ Written 2026-11-16, about 20:00 ET. Branch `rework-2026-11` (latest commit on Gi
   - real-device touch dragging of the sheet
 - **Wikimedia load:** each new place makes about 10–14 requests to Wikimedia, at most 6 at a time.
 
-## Review round 1: what I did with the 12 confirmed findings (20:35 ET)
+## Review round 1: what I did with the 12 confirmed findings (21:37 ET)
 
 Source: the coordinator's independent review (partial: the "years and eras" lens never ran). Fixes are in the engine, so the cache was cleared and the preview rebuilds on push.
 
