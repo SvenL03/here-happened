@@ -161,8 +161,14 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
     );
   };
   // The spot: an article within 300 m, else (large sites like Nan Madol) the nearest within 600 m.
+  // The spot's name: among articles right at the pin, the one with the most on record (the Colosseum, not the
+  // Colossus of Nero's plinth 50 m away), falling back to the nearest.
+  // Score = article size, damped steeply by distance (scale 40 m, cubed): the Colosseum at 80 m beats a 52 m plinth,
+  // but a big school 118 m away doesn't beat the bridge at the pin.
+  const spotScore = (p: GeoPage) => (p.length ?? 1000) / (1 + Math.pow((p.distanceKm * 1000) / 40, 3));
+  const biggest = (ps: GeoPage[]) => ps.reduce<GeoPage | undefined>((b, p) => (!b || spotScore(p) > spotScore(b) ? p : b), undefined);
   const spotOf = (pages: GeoPage[]) =>
-    pages.find((p) => p.distanceKm <= (resolved.locality ? 0.2 : 0.3) && notAdmin(p.title)) ??
+    biggest(pages.filter((p) => p.distanceKm <= (resolved.locality ? 0.2 : 0.3) && notAdmin(p.title))) ??
     (resolved.locality
       ? undefined
       : pages.find((p) => p.distanceKm <= 0.6 && notAdmin(p.title) && !/school|station|hotel|airport/i.test(p.title)));
@@ -294,7 +300,8 @@ export async function buildPlaceStory(lat: number, lng: number, emit?: (e: Place
   } else {
     // Spot: articles within 300 m (not the town or county itself), whole article.
     const spots = geoAll.filter((p) => p.distanceKm <= (resolved.locality ? 0.2 : 0.3) && notAdmin(p.title)).slice(0, 2);
-    if (!spots.length && spotPage) spots.push(spotPage);
+    if (spotPage && !spots.some((p) => p.title === spotPage.title && p.lang === spotPage.lang)) spots.unshift(spotPage);
+    if (spots.length > 2) spots.length = 2;
     for (const p of spots) {
       usedTitles.add(`${p.lang}:${p.title}`);
       addFull(p.lang, p.title, "all", "spot", p.title, p.distanceKm);

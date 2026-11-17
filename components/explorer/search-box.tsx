@@ -52,7 +52,16 @@ export function SearchBox({ onPick }: { onPick: (hit: SearchHit) => void }) {
       try {
         const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(term)}&limit=5&lang=en`, { signal: ac.signal });
         const j = (await r.json()) as { features: PhotonFeature[] };
-        setHits(j.features.map(toHit));
+        // OSM often has the same place twice (a way and a relation): keep one per name + context.
+        const seen = new Set<string>();
+        setHits(
+          j.features.map(toHit).filter((h) => {
+            const k = `${h.name}|${h.context}`.toLowerCase();
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          }),
+        );
         setFailed(false);
         setActive(-1);
         setOpen(true);

@@ -11,6 +11,7 @@ export interface GeoPage {
   distanceKm: number;
   qid?: string;
   intro: string;
+  length?: number; // article size in bytes: a rough measure of how much is on record
 }
 
 interface ApiPage {
@@ -21,6 +22,7 @@ interface ApiPage {
   extract?: string;
   coordinates?: { lat: number; lon: number }[];
   pageprops?: { wikibase_item?: string; disambiguation?: string };
+  length?: number;
 }
 
 const api = (lang: string) => `https://${lang}.wikipedia.org/w/api.php`;
@@ -54,6 +56,7 @@ export async function geosearch(lang: string, lat: number, lng: number, radiusM 
       distanceKm: distanceKm(lat, lng, c.lat, c.lon),
       qid: p.pageprops?.wikibase_item,
       intro: p.extract ?? "",
+      length: p.length,
     });
   }
   return out.sort((a, b) => a.distanceKm - b.distanceKm);
